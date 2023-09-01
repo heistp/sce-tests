@@ -1,0 +1,196 @@
+#!/bin/bash
+#
+# This script generates a Linux kernel config for SCE.
+#
+# The script may be run with multiple arguments, each of which appends
+# additional config settings that are merged into the final result. To add a
+# new target, add a function that appends some config to the .config file,
+# and add it to the usage and main while loop.
+
+set -e
+
+# default sets the default config for SCE kernels
+#
+# Please maintain the commented sections and keep config sorted within the
+# section, for sanity.
+default() {
+    cat << EOF >> .config
+# kernel version
+CONFIG_LOCALVERSION="-sce"
+CONFIG_LOCALVERSION_AUTO=n
+# VM config
+CONFIG_HYPERVISOR_GUEST=y
+CONFIG_PARAVIRT=y
+CONFIG_KVM_GUEST=y
+# /proc/config.gz support
+CONFIG_IKCONFIG=y
+CONFIG_IKCONFIG_PROC=y
+# network config
+CONFIG_BRIDGE=m
+CONFIG_DUMMY=m
+CONFIG_IFB=m
+CONFIG_INET_AH=m
+CONFIG_INET_DIAG=m
+CONFIG_INET_ESP=m
+CONFIG_IPVLAN=m
+CONFIG_IP_DCCP=m
+CONFIG_IP_SCTP=m
+CONFIG_MACVLAN=m
+CONFIG_MPTCP=y
+CONFIG_NETLINK_DIAG=m
+CONFIG_NET_FOU=m
+CONFIG_NET_FOU_IP_TUNNELS=y
+CONFIG_NET_IPIP=m
+CONFIG_NET_IPVTI=m
+CONFIG_NLMON=m
+CONFIG_TUN=m
+CONFIG_VETH=m
+CONFIG_VLAN_8021Q=m
+CONFIG_VXLAN=m
+CONFIG_WIREGUARD=m
+# SCE qdiscs
+CONFIG_NET_SCH_CAKE=m
+CONFIG_NET_SCH_CNQ_COBALT=m
+CONFIG_NET_SCH_CNQ_CODEL_AF=m
+CONFIG_NET_SCH_COBALT=m
+CONFIG_NET_SCH_DELTIC=m
+CONFIG_NET_SCH_LFQ_COBALT=m
+CONFIG_NET_SCH_QUARTZ=m
+CONFIG_NET_SCH_TWIN_CODEL_AF=m
+# other qdiscs
+CONFIG_NET_SCH_CODEL=m
+CONFIG_NET_SCH_DRR=m
+CONFIG_NET_SCH_FQ=m
+CONFIG_NET_SCH_FQ_CODEL=m
+CONFIG_NET_SCH_FQ_PIE=m
+CONFIG_NET_SCH_GRED=m
+CONFIG_NET_SCH_HFSC=m
+CONFIG_NET_SCH_HTB=m
+CONFIG_NET_SCH_INGRESS=m
+CONFIG_NET_SCH_MQPRIO=m
+CONFIG_NET_SCH_NETEM=m
+CONFIG_NET_SCH_PIE=m
+CONFIG_NET_SCH_PRIO=m
+CONFIG_NET_SCH_QFQ=m
+CONFIG_NET_SCH_RED=m
+CONFIG_NET_SCH_SFB=m
+CONFIG_NET_SCH_SFQ=m
+CONFIG_NET_SCH_SKBPRIO=m
+# net/sched classifiers, matches and actions
+CONFIG_CLS_U32_MARK=y
+CONFIG_CLS_U32_PERF=y
+CONFIG_NET_ACT_BPF=m
+CONFIG_NET_ACT_CSUM=m
+CONFIG_NET_ACT_GACT=m
+CONFIG_NET_ACT_MIRRED=m
+CONFIG_NET_ACT_PEDIT=m
+CONFIG_NET_ACT_POLICE=m
+CONFIG_NET_ACT_SKBEDIT=m
+CONFIG_NET_ACT_SKBMOD=m
+CONFIG_NET_ACT_VLAN=m
+CONFIG_NET_CLS_ACT=y
+CONFIG_NET_CLS_BPF=m
+CONFIG_NET_CLS_FLOW=m
+CONFIG_NET_CLS_FLOWER=m
+CONFIG_NET_CLS_FW=m
+CONFIG_NET_CLS_MATCHALL=m
+CONFIG_NET_CLS_U32=m
+CONFIG_NET_EMATCH_CMP=m
+CONFIG_NET_EMATCH_META=m
+CONFIG_NET_EMATCH_NBYTE=m
+CONFIG_NET_EMATCH_TEXT=m
+CONFIG_NET_EMATCH_U32=m
+# SCE transports
+CONFIG_TCP_CONG_CUBIC_SCE=m
+CONFIG_TCP_CONG_DCTCP_SCE=m
+CONFIG_TCP_CONG_LINEAR=m
+CONFIG_TCP_CONG_RENO_SCE=m
+# other transports
+CONFIG_TCP_CONG_BBR=m
+CONFIG_TCP_CONG_DCTCP=m
+CONFIG_TCP_CONG_HSTCP=m
+CONFIG_TCP_CONG_LP=m
+CONFIG_TCP_CONG_SCALABLE=m
+CONFIG_TCP_CONG_VEGAS=m
+CONFIG_TCP_CONG_VENO=m
+EOF
+}
+
+# pn52 sets config for Arch Linux on the ASUS ExpertCenter PN52
+#
+# note: add tsc=reliable to /etc/default/grub GRUB_CMDLINE_LINUX_DEFAULT
+#
+# also tried, with no benefit:
+# KCFLAGS="-march=znver3" and "-march=native"
+pn52() {
+    cat << EOF >> .config
+# required to boot
+CONFIG_BLK_DEV_NVME=m
+CONFIG_FW_LOADER_COMPRESS=y
+CONFIG_FW_LOADER_COMPRESS_XZ=y
+CONFIG_FW_LOADER_COMPRESS_ZSTD=y
+# video and console
+CONFIG_DRM_AMDGPU=m
+CONFIG_FB=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+# KVM support
+CONFIG_KVM=m
+CONFIG_KVM_AMD=m
+# additional hardware support
+CONFIG_NVME_HWMON=y
+CONFIG_X86_X2APIC=y
+CONFIG_X86_AMD_PLATFORM_DEVICE=y
+CONFIG_AMD_IOMMU=y
+CONFIG_AMD_IOMMU_V2=m
+CONFIG_SENSORS_K10TEMP=m
+# disable some heavy-weight defaults we don't use
+CONFIG_SND_HDA_INTEL=n
+CONFIG_DRM_I915=n
+# other possible AMD configs we're not using
+# CONFIG_AMD_PMC
+# CONFIG_PERF_EVENTS_AMD_POWER
+# CONFIG_CRYPTO_DEV_CCP=y
+# CONFIG_CRYPTO_DEV_CCP_DD=m
+# CONFIG_CRYPTO_DEV_SP_CCP=y
+# CONFIG_CRYPTO_DEV_CCP_CRYPTO=m
+# CONFIG_CRYPTO_DEV_SP_PSP=y
+# CONFIG_SENSORS_FAM15H_POWER=m
+# CONFIG_USB_XHCI_PCI_RENESAS=m
+# CONFIG_ASUS_WMI=m
+# CONFIG_MK8 # for older CPUs
+EOF
+}
+
+# usage
+if (($# == 0)); then
+    cat << EOF >&2
+usage: $0 [target] ...
+
+valid targets:
+default  default config
+pn52     ASUS ExpertCenter PN52
+EOF
+    exit 1
+fi
+
+# start with default config and add SCE defaults
+make defconfig
+default
+
+# add configs for each of the specified targets
+while (($# > 0)); do
+    case "$1" in
+    pn52)
+        $1
+        ;;
+    default)
+        ;;
+    *)
+        >&2 echo "error: unrecognized target: $1"
+        exit 1
+    esac
+    shift
+done
+
+# take any other defaults based on the new config
+make olddefconfig
