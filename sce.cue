@@ -8,15 +8,13 @@ package sce
 
 Run: {
 	Serial: [
+		// oneflow tests
+		for c in ["reno-sce", "cubic-sce", "dctcp-sce", "cubic"]
 		for r in [1, 10, 100] {_oneflow & {
 			_bandwidth: 100
 			_rtt:       r
-			_cca:       "cubic-sce"
+			_cca:       c
 			_qdisc:     "deltic"
 		}},
 	]
-}
-
-Results: {
-	Destructive: false
 }

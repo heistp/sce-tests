@@ -30,12 +30,18 @@ _oneflow: {
 
 	Report: [
 		{Analyze: {}},
+		{Encode: {
+			File: ["*.pcap"]
+			Extension: ".zstd"
+			Destructive: true
+		}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {
+				"cubic":     "CUBIC"
 				"cubic-sce": "CUBIC-SCE"
-				"reno-sce":  "Reno-SCE"
 				"dctcp-sce": "DCTCP-SCE"
+				"reno-sce":  "Reno-SCE"
 				"udp":       "UDP OWD"
 			}
 			Options: {
