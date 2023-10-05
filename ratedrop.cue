@@ -3,31 +3,33 @@
 
 package sce
 
-// _oneflow tests one TCP flow for a given rate, RTT, CCA and qdisc.
-_oneflow: {
-	// variables
-	_rate:  int
+// _ratedrop tests one TCP flow through a drop then rise in bottleneck capacity.
+_ratedrop: {
+	// parameters
+	_rate0: int
+	_rate1: int
 	_rtt:   int
 	_cca:   string & !=""
 	_qdisc: string & !=""
 
 	// constants
-	_duration: 60 * 6
+	_duration: 90
 
-	// Test is the oneflow Test
+	// Test is the ratedrop Test
 	Test: {
 		ID: {
-			name:  "oneflow"
-			rate:  "\(_rate)mbit"
+			name:  "ratedrop"
+			rate0: "\(_rate0)mbit"
+			rate1: "\(_rate1)mbit"
 			rtt:   "\(_rtt)ms"
 			cca:   _cca
 			qdisc: _qdisc
 		}
-		ResultPrefix: "{{.name}}/{{.rate}}_{{.rtt}}_{{.cca}}_{{.qdisc}}_"
+		ResultPrefix: "{{.name}}/{{.rate0}}_{{.rate1}}_{{.rtt}}_{{.cca}}_{{.qdisc}}_"
 		Serial: [
 			_rig.setup,
 			_server,
-			_client,
+			_do,
 		]
 	}
 
@@ -43,7 +45,7 @@ _oneflow: {
 			To: ["timeseries.html"]
 			FlowLabel: _flowLabel
 			Options: {
-				title: "Single Flow, \(_rate)Mbps, \(_rtt)ms RTT, \(FlowLabel[_cca]), \(_qdisc) "
+				title: "Rate Drop, \(_rate0)Mbps → \(_rate1)Mbps, \(_rtt)ms RTT, \(FlowLabel[_cca]), \(_qdisc)"
 				series: {
 					"1": {
 						targetAxisIndex: 1
@@ -54,7 +56,7 @@ _oneflow: {
 				}
 				vAxes: {
 					"0": viewWindow: {
-						max: _rate * 1.1
+						max: _rate0 * 1.1
 					}
 					"1": {
 						viewWindow: {
@@ -79,7 +81,7 @@ _oneflow: {
 		]
 		mid: post: [
 			"tc qdisc add dev mid.r root handle 1: htb default 1",
-			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(_rate)mbit quantum \(htbQuantum)",
+			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(_rate0)mbit quantum \(htbQuantum)",
 			"tc qdisc add dev mid.r parent 1:1 \(_qdisc)",
 			"tc qdisc add dev mid.l root netem delay \(_rtt/2)ms limit 1000000",
 			"ip link add dev imid.l type ifb",
@@ -106,36 +108,55 @@ _oneflow: {
 		}
 	}
 
-	// client runs the client and captures packets on the left node
-	_client: {
-		Child: {
-			Node: _rig.left.node
-			Serial: [
-				_tcpdump & {_iface: "left.r"},
-				{Sleep:             "1s"},
-				{Parallel: [
-					{PacketClient: {
-						Addr: _rig.serverAddr
-						Flow: "udp"
-						Sender: [
-							{Unresponsive: {
-								Wait: ["20ms"]
-								Length: [160]
-								Duration: "\(_duration)s"
-							}},
-						]
-					}},
-					{StreamClient: {
-						Addr: _rig.serverAddr
-						Upload: {
-							Flow:             _cca
-							CCA:              _cca
-							Duration:         "\(_duration)s"
-							IOSampleInterval: "\(_rtt*4)ms"
-						}
-					}},
-				]},
-			]
-		}
+	// do defines the parallel Runners for the left (client) and mid (middlebox)
+	// nodes.
+	_do: {
+		Parallel: [
+			{Child: {
+				Node:   _rig.left.node
+				Serial: _left
+			}},
+			{Child: {
+				Node:   _rig.mid.node
+				Serial: _mid
+			}},
+		]
+
+		// left lists the serial Runners run on the left (client) node.
+		_left: [
+			_tcpdump & {_iface: "left.r"},
+			{Sleep:             "1s"},
+			{Parallel: [
+				{PacketClient: {
+					Addr: _rig.serverAddr
+					Flow: "udp"
+					Sender: [
+						{Unresponsive: {
+							Wait: ["10ms"]
+							Length: [160]
+							Duration: "\(_duration)s"
+						}},
+					]
+				}},
+				{StreamClient: {
+					Addr: _rig.serverAddr
+					Upload: {
+						Flow:             _cca
+						CCA:              _cca
+						Duration:         "\(_duration)s"
+						IOSampleInterval: "\(_rtt*4)ms"
+					}
+				}},
+			]},
+			{Sleep: "1s"},
+		]
+
+		// mid lists the serial Runners run on the mid (middlebox) node.
+		_mid: [
+			{Sleep:           "\(_duration/3)s"},
+			{System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate1)mbit quantum \(_rig.htbQuantum)"},
+			{Sleep:           "\(_duration/3)s"},
+			{System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate0)mbit quantum \(_rig.htbQuantum)"},
+		]
 	}
 }

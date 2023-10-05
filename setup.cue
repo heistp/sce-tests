@@ -42,11 +42,12 @@ _dumbbell: {
 	right: {
 		post: [...string]
 		node:  _netnsNode & {ID: "right"}
+		addr:  "10.0.0.2"
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
 			"ip link add dev right.l type veth peer name mid.r",
 			"ip link set dev mid.r netns mid",
-			"ip addr add 10.0.0.2/24 dev right.l",
+			"ip addr add \(addr)/24 dev right.l",
 			"ip link set right.l up",
 			"ethtool -K right.l \(_noOffloads)",
 		] + post
@@ -73,11 +74,12 @@ _dumbbell: {
 	left: {
 		post: [...string]
 		node:  _netnsNode & {ID: "left"}
+		addr:  "10.0.0.1"
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip addr add 10.0.0.1/24 dev left.r",
+			"ip addr add \(addr)/24 dev left.r",
 			"ip link set left.r up",
-			"ping -c 3 -i 0.1 10.0.0.2",
+			"ping -c 3 -i 0.1 \(_dumbbell.right.addr)",
 			"ethtool -K left.r \(_noOffloads)",
 		] + post
 	}
