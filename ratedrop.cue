@@ -38,7 +38,7 @@ _ratedrop: {
 		{Analyze: {}},
 		{Encode: {
 			File: ["*.pcap"]
-			Extension:   ".zstd"
+			Extension:   ".xz"
 			Destructive: true
 		}},
 		{ChartsTimeSeries: {

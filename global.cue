@@ -26,3 +26,5 @@ _tcpdump: {
 		Stdout:     "\(_iface).pcap"
 	}
 }
+
+#Results: Codec: xz: EncodeArg: ["-0"]
