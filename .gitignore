@@ -6,6 +6,9 @@
 .tags
 .exrc
 
+# server config
+server.cue
+
 # results directory
 results/
 
