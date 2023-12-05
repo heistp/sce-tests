@@ -17,7 +17,7 @@ default() {
     cat << EOF >> .config
 # kernel version
 CONFIG_LOCALVERSION="-sce"
-CONFIG_LOCALVERSION_AUTO=n
+CONFIG_LOCALVERSION_AUTO=y
 # VM config
 CONFIG_HYPERVISOR_GUEST=y
 CONFIG_PARAVIRT=y
