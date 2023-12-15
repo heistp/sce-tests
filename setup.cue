@@ -121,6 +121,7 @@ _tree2: {
 	setup: {
 		Serial: [
 			_stream,
+			_sysinfo,
 			for n in [ trunk, fork, limb1, leaf1, limb2, leaf2] {
 				Child: {
 					Node: n.node
@@ -211,7 +212,7 @@ _tree2: {
 			"ip link set \(_id).r up",
 			"ethtool -K \(_id).r \(_noOffloads)",
 			"ip route add default via 10.0.\(_n)1.2",
-			"ping -c 3 -i 0.01 \(_tree2.trunk.addr)",
+			"ping -c 3 -i 0.1 \(_tree2.trunk.addr)",
 		] + post
 	}
 }
