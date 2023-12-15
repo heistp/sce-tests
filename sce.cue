@@ -30,5 +30,18 @@ Run: {
 				_qdisc: "deltic"
 			}
 		},
+
+		// twoflow tests
+		for c in ["reno-sce", "cubic-sce", "dctcp-sce", "cubic"]
+		for r in [10] {
+			_twoflow & {
+				_rate:  100
+				_rtt1:  r
+				_rtt2:  r * 2
+				_cca1:  c
+				_cca2:  c
+				_qdisc: "deltic"
+			}
+		},
 	]
 }

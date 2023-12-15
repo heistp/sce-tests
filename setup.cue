@@ -44,8 +44,10 @@ _netnsNode: {
 	Netns: {Create: true}
 }
 
-// _dumbbell defines setup commands for a standard three-node dumbbell, with
-// nodes left, mid and right.
+// _dumbbell defines setup commands for a three-node dumbbell, with nodes left,
+// mid and right, where mid is a bridge.
+//
+// left <-10.0.0.0/24-> mid <-10.0.0.0/24-> right
 _dumbbell: {
 	setup: {
 		Serial: [
@@ -105,6 +107,111 @@ _dumbbell: {
 			"ip link set left.r up",
 			"ping -c 3 -i 0.1 \(_dumbbell.right.addr)",
 			"ethtool -K left.r \(_noOffloads)",
+		] + post
+	}
+}
+
+// _tree2 defines setup commands for a tree of nodes with two branches. There
+// are six total nodes: leaf1/2, limb1/2, fork and trunk connected as follows:
+//
+// leaf1 <-10.0.11.0/24-> limb1 <-10.0.10.0/24->
+//                                               fork <-10.0.0.0/24-> trunk
+// leaf2 <-10.0.21.0/24-> limb2 <-10.0.20.0/24->
+_tree2: {
+	setup: {
+		Serial: [
+			_stream,
+			for n in [ trunk, fork, limb1, leaf1, limb2, leaf2] {
+				Child: {
+					Node: n.node
+					Serial: [
+						_stream,
+						for c in n.setup {System: Command: c},
+					]
+				}
+			},
+		]
+	}
+
+	trunk: {
+		post: [...string]
+		node:  _netnsNode & {ID: "trunk"}
+		addr:  "10.0.0.2"
+		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+			"ip link add dev trunk.l type veth peer name fork.r",
+			"ip link set dev fork.r netns fork",
+			"ip addr add \(addr)/24 dev trunk.l",
+			"ip link set trunk.l up",
+			"ethtool -K trunk.l \(_noOffloads)",
+			"ip route add default via 10.0.0.1",
+		] + post
+	}
+
+	fork: {
+		post: [...string]
+		node:  _netnsNode & {ID: "fork"}
+		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+			"sysctl -w net.ipv4.ip_forward=1",
+			"ip addr add 10.0.0.1/24 dev fork.r",
+			"ip link set fork.r up",
+			"ip link add dev fork.l1 type veth peer name limb1.r",
+			"ip link set dev limb1.r netns limb1",
+			"ip addr add 10.0.10.2/24 dev fork.l1",
+			"ip link set fork.l1 up",
+			"ip link add dev fork.l2 type veth peer name limb2.r",
+			"ip link set dev limb2.r netns limb2",
+			"ip addr add 10.0.20.2/24 dev fork.l2",
+			"ip link set fork.l2 up",
+			"ethtool -K fork.r \(_noOffloads)",
+			"ethtool -K fork.l1 \(_noOffloads)",
+			"ethtool -K fork.l2 \(_noOffloads)",
+			"ip route add 10.0.11.0/24 via 10.0.10.1",
+			"ip route add 10.0.21.0/24 via 10.0.20.1",
+		] + post
+	}
+
+	limb1: _limb & {_n: 1}
+
+	limb2: _limb & {_n: 2}
+
+	_limb: {
+		_n:  int // node number
+		_id: "limb\(_n)"
+		post: [...string]
+		node:  _netnsNode & {ID: _id}
+		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+			"sysctl -w net.ipv4.ip_forward=1",
+			"ip addr add 10.0.\(_n)0.1/24 dev \(_id).r",
+			"ip link set \(_id).r up",
+			"ip link add dev \(_id).l type veth peer name leaf\(_n).r",
+			"ip link set dev leaf\(_n).r netns leaf\(_n)",
+			"ip addr add 10.0.\(_n)1.2/24 dev \(_id).l",
+			"ip link set \(_id).l up",
+			"ethtool -K \(_id).r \(_noOffloads)",
+			"ethtool -K \(_id).l \(_noOffloads)",
+			"ip route add 10.0.0.0/24 via 10.0.\(_n)0.2",
+		] + post
+	}
+
+	leaf1: _leaf & {_n: 1}
+
+	leaf2: _leaf & {_n: 2}
+
+	_leaf: {
+		_n:  int // node number
+		_id: "leaf\(_n)"
+		post: [...string]
+		node:  _netnsNode & {ID: _id}
+		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+			"ip addr add 10.0.\(_n)1.1/24 dev \(_id).r",
+			"ip link set \(_id).r up",
+			"ethtool -K \(_id).r \(_noOffloads)",
+			"ip route add default via 10.0.\(_n)1.2",
+			"ping -c 3 -i 0.01 \(_tree2.trunk.addr)",
 		] + post
 	}
 }
