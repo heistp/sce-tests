@@ -6,8 +6,8 @@
 .tags
 .exrc
 
-# server config
-server.cue
+# local CUE files
+local.cue
 
 # results directory
 results/
