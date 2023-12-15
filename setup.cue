@@ -7,8 +7,31 @@ package sce
 // machine).
 _platform: "linux-amd64"
 
-// _streamConfig selects what is streamed from nodes during tests.
-_streamConfig: {ResultStream: Include: Log: true}
+// _stream selects what is streamed from nodes during tests.
+_stream: {ResultStream: Include: Log: true}
+
+// _sysinfo selects what system information is retrieved.
+_sysinfo: {
+	SysInfo: {
+		OS: {
+			Command: {Command: "uname -a"}
+		}
+		Command: [
+			{Command: "lscpu"},
+			{Command: "lshw -sanitize"},
+		]
+		File: [
+			"/proc/cmdline",
+			"/sys/devices/system/clocksource/clocksource0/available_clocksource",
+			"/sys/devices/system/clocksource/clocksource0/current_clocksource",
+		]
+		Sysctl: [
+			"^net\\.core\\.",
+			"^net\\.ipv4\\.tcp_",
+			"^net\\.ipv4\\.udp_",
+		]
+	}
+}
 
 // _noOffloads contains the features arguments for ethtool to disable offloads
 _noOffloads: "rx off tx off sg off tso off gso off gro off rxvlan off txvlan off"
@@ -26,12 +49,13 @@ _netnsNode: {
 _dumbbell: {
 	setup: {
 		Serial: [
-			_streamConfig,
+			_stream,
+			_sysinfo,
 			for n in [ right, mid, left] {
 				Child: {
 					Node: n.node
 					Serial: [
-						_streamConfig,
+						_stream,
 						for c in n.setup {System: Command: c},
 					]
 				}
