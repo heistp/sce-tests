@@ -51,24 +51,24 @@ _twoflow: {
 				series: {
 					// colorbrewer2.org qualitative 4-class red-blue-green
 					"0": {
-						color:     "#e41a1c"
+						color:     "#1b9e77"
 						lineWidth: 1.5
 					}
 					"1": {
-						color:     "#377eb8"
+						color:     "#d95f02"
 						lineWidth: 1.5
 					}
 					"2": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.5
-						color:           "#4daf4a"
+						color:           "#7570b3"
 					}
 					"3": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.5
-						color:           "#984ea3"
+						color:           "#e7298a"
 					}
 				}
 				vAxes: {
