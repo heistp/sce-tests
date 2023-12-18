@@ -48,12 +48,13 @@ _ratedrop: {
 				title: "Rate Drop, \(_rate0)Mbps → \(_rate1)Mbps, \(_rtt)ms RTT, \(FlowLabel[_cca]), \(_qdisc)"
 				series: {
 					"0": {
-						color: _dark2[0]
+						color:     _dark2[0]
+						lineWidth: 1.5
 					}
 					"1": {
 						targetAxisIndex: 1
 						lineWidth:       0
-						pointSize:       0.2
+						pointSize:       0.5
 						color:           _dark2[1]
 					}
 				}
