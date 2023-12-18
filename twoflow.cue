@@ -49,26 +49,25 @@ _twoflow: {
 			Options: {
 				title: "Two Flow, \(_rate)Mbps, \(FlowLabel[_cca1])@\(_rtt1)ms, \(FlowLabel[_cca2])@\(_rtt2)ms, \(_qdisc)"
 				series: {
-					// colorbrewer2.org qualitative 4-class red-blue-green
 					"0": {
-						color:     "#1b9e77"
+						color:     _dark2[0]
 						lineWidth: 1.5
 					}
 					"1": {
-						color:     "#d95f02"
+						color:     _dark2[1]
 						lineWidth: 1.5
 					}
 					"2": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.5
-						color:           "#7570b3"
+						color:           _dark2[2]
 					}
 					"3": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.5
-						color:           "#e7298a"
+						color:           _dark2[3]
 					}
 				}
 				vAxes: {

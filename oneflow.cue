@@ -45,11 +45,14 @@ _oneflow: {
 			Options: {
 				title: "Single Flow, \(_rate)Mbps, \(_rtt)ms RTT, \(FlowLabel[_cca]), \(_qdisc) "
 				series: {
+					"0": {
+						color: _dark2[0]
+					}
 					"1": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.2
-						color:           "#4f9634"
+						color:           _dark2[1]
 					}
 				}
 				vAxes: {
