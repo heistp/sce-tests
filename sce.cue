@@ -15,7 +15,7 @@ Run: {
 				_rate:  100
 				_rtt:   r
 				_cca:   c
-				_qdisc: "deltic"
+				_qdisc: "deltic_polya"
 			}
 		},
 
@@ -27,7 +27,7 @@ Run: {
 				_rate1: 10
 				_rtt:   r
 				_cca:   c
-				_qdisc: "deltic"
+				_qdisc: "deltic_polya"
 			}
 		},
 
@@ -40,7 +40,7 @@ Run: {
 				_rtt2:  r * 2
 				_cca1:  c
 				_cca2:  c
-				_qdisc: "deltic"
+				_qdisc: "deltic_polya"
 			}
 		},
 	]
