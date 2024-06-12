@@ -16,27 +16,24 @@ _twoflow: {
 	// constants
 	_duration: 60
 
-	// Test is the twoflow_cca test
-	Test: {
-		ID: {
-			name:  "twoflow"
-			rate:  "\(_rate)mbit"
-			cca1:  _cca1
-			rtt1:  "\(_rtt1)ms"
-			cca2:  _cca2
-			rtt2:  "\(_rtt2)ms"
-			qdisc: _qdisc
-		}
-		ResultPrefix: "{{.name}}/{{.rate}}_{{.cca1}}_{{.rtt1}}_{{.cca2}}_{{.rtt2}}_{{.qdisc}}_"
-		Serial: [
-			_rig.setup,
-			_server,
-			_client,
-		]
+	ID: {
+		name:  "twoflow"
+		rate:  "\(_rate)mbit"
+		cca1:  _cca1
+		rtt1:  "\(_rtt1)ms"
+		cca2:  _cca2
+		rtt2:  "\(_rtt2)ms"
+		qdisc: _qdisc
 	}
+	Path: "{{.name}}/{{.rate}}_{{.cca1}}_{{.rtt1}}_{{.cca2}}_{{.rtt2}}_{{.qdisc}}_"
+	Serial: [
+		_rig.setup,
+		_server,
+		_client,
+	]
 
-	// Report lists the report stages to run after Test
-	Report: [
+	// After lists the report stages to run after Test
+	After: [
 		{Analyze: {}},
 		{Encode: {
 			File: ["*.pcap"]

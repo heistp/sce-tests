@@ -14,25 +14,22 @@ _oneflow: {
 	// constants
 	_duration: 60 * 6
 
-	// Test is the oneflow Test
-	Test: {
-		ID: {
-			name:  "oneflow"
-			rate:  "\(_rate)mbit"
-			rtt:   "\(_rtt)ms"
-			cca:   _cca
-			qdisc: _qdisc
-		}
-		ResultPrefix: "{{.name}}/{{.rate}}_{{.rtt}}_{{.cca}}_{{.qdisc}}_"
-		Serial: [
-			_rig.setup,
-			_server,
-			_client,
-		]
+	ID: {
+		name:  "oneflow"
+		rate:  "\(_rate)mbit"
+		rtt:   "\(_rtt)ms"
+		cca:   _cca
+		qdisc: _qdisc
 	}
+	Path: "{{.name}}/{{.rate}}_{{.rtt}}_{{.cca}}_{{.qdisc}}_"
+	Serial: [
+		_rig.setup,
+		_server,
+		_client,
+	]
 
-	// Report lists the report stages to run after Test
-	Report: [
+	// After lists the report stages to run after Test
+	After: [
 		{Analyze: {}},
 		{Encode: {
 			File: ["*.pcap"]

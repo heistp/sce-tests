@@ -15,26 +15,23 @@ _ratedrop: {
 	// constants
 	_duration: 90
 
-	// Test is the ratedrop Test
-	Test: {
-		ID: {
-			name:  "ratedrop"
-			rate0: "\(_rate0)mbit"
-			rate1: "\(_rate1)mbit"
-			rtt:   "\(_rtt)ms"
-			cca:   _cca
-			qdisc: _qdisc
-		}
-		ResultPrefix: "{{.name}}/{{.rate0}}_{{.rate1}}_{{.rtt}}_{{.cca}}_{{.qdisc}}_"
-		Serial: [
-			_rig.setup,
-			_server,
-			_do,
-		]
+	ID: {
+		name:  "ratedrop"
+		rate0: "\(_rate0)mbit"
+		rate1: "\(_rate1)mbit"
+		rtt:   "\(_rtt)ms"
+		cca:   _cca
+		qdisc: _qdisc
 	}
+	Path: "{{.name}}/{{.rate0}}_{{.rate1}}_{{.rtt}}_{{.cca}}_{{.qdisc}}_"
+	Serial: [
+		_rig.setup,
+		_server,
+		_do,
+	]
 
-	// Report lists the report stages to run after Test
-	Report: [
+	// After lists the report stages to run after Test
+	After: [
 		{Analyze: {}},
 		{Encode: {
 			File: ["*.pcap"]
