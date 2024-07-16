@@ -6,13 +6,11 @@ package sce
 // _oneflow tests one TCP flow for a given rate, RTT, CCA and qdisc.
 _oneflow: {
 	// variables
-	_rate:  int
-	_rtt:   int
-	_cca:   string & !=""
-	_qdisc: string & !=""
-
-	// constants
-	_duration: 60 * 6
+	_rate:     int
+	_rtt:      int
+	_cca:      string & !=""
+	_qdisc:    string & !=""
+	_duration: int
 
 	ID: {
 		name:  "oneflow"
@@ -77,6 +75,7 @@ _oneflow: {
 			"modprobe tcp_reno_sce",
 			"modprobe tcp_dctcp_sce",
 			"sysctl -w net.ipv4.tcp_ecn=1",
+			"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
 		]
 		mid: post: [
 			"tc qdisc add dev mid.r root handle 1: htb default 1",
@@ -91,6 +90,7 @@ _oneflow: {
 		]
 		right: post: [
 			"sysctl -w net.ipv4.tcp_sce=1",
+			"sysctl -w net.ipv4.tcp_rmem=\"4096 131072 240000000\"",
 		]
 	}
 

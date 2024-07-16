@@ -9,12 +9,47 @@ package sce
 Test: [
 	// oneflow tests
 	for c in ["reno-sce", "cubic-sce", "dctcp-sce", "cubic"]
-	for r in [1, 10, 100] {
+	for t in [1, 10, 20]
+	for r in [1, 10, 100, 200, 500, 1000] {
 		_oneflow & {
-			_rate:  100
-			_rtt:   r
-			_cca:   c
-			_qdisc: "deltic_polya"
+			_rate:     r
+			_rtt:      t
+			_cca:      c
+			_duration: 2 * 60
+			_qdisc:    "deltic_polya"
+		}
+	},
+	for c in ["reno-sce", "cubic-sce", "dctcp-sce", "cubic"]
+	for t in [80, 160]
+	for r in [1, 100, 200, 1000] {
+		_oneflow & {
+			_rate:     r
+			_rtt:      t
+			_cca:      c
+			_duration: 3 * 60
+			_qdisc:    "deltic_polya"
+		}
+	},
+	for c in ["cubic-sce", "cubic"]
+	for t in [320]
+	for r in [1, 100, 200, 1000] {
+		_oneflow & {
+			_rate:     r
+			_rtt:      t
+			_cca:      c
+			_duration: 5 * 60
+			_qdisc:    "deltic_polya"
+		}
+	},
+	for c in ["cubic-sce", "cubic"]
+	for t in [640]
+	for r in [100] {
+		_oneflow & {
+			_rate:     r
+			_rtt:      t
+			_cca:      c
+			_duration: 10 * 60
+			_qdisc:    "deltic_polya"
 		}
 	},
 
@@ -43,3 +78,10 @@ Test: [
 		}
 	},
 ]
+
+MultiReport: [{
+	Index: {
+		Title:   "SCE Tests"
+		GroupBy: "name"
+	}
+}]
