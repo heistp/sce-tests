@@ -9,7 +9,7 @@ _flowLabel: {
 	"cubic-sce": string & !="" | *"CUBIC-SCE"
 	"dctcp-sce": string & !="" | *"DCTCP-SCE"
 	"reno-sce":  string & !="" | *"Reno-SCE"
-	"udp":       string & !="" | *"UDP OWD"
+	"udp":       string & !="" | *"UDP"
 }
 
 // _dark2 is the Dark2 qualitative color scheme from colorbrewer2.org, with
