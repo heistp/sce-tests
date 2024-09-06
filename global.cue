@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0
-// Copyright 2023 Pete Heist
+// Copyright 2024 Pete Heist
 
 package sce
 
-// flowLabel defines common labels for flows.
+// _flowLabel defines common labels for flows.
 _flowLabel: {
+	"bbr":       string & !="" | *"BBR"
 	"cubic":     string & !="" | *"CUBIC"
 	"cubic-sce": string & !="" | *"CUBIC-SCE"
+	"dctcp":     string & !="" | *"DCTCP"
 	"dctcp-sce": string & !="" | *"DCTCP-SCE"
+	"reno":      string & !="" | *"Reno"
 	"reno-sce":  string & !="" | *"Reno-SCE"
 	"udp":       string & !="" | *"UDP"
 }
@@ -25,7 +28,7 @@ _dark2: [
 	"#666666",
 ]
 
-// tcpdump defines a Runner to run tcpdump to stdout, and save stdout to a file.
+// _tcpdump defines a Runner to run tcpdump to stdout, and save stdout to a file.
 _tcpdump: {
 	// iface defines the interface to capture on.
 	_iface: string & !=""
@@ -39,5 +42,8 @@ _tcpdump: {
 		Stdout:     "\(_iface).pcap"
 	}
 }
+
+// _tcpInfoInterval is the default sample interval for TCP info from sock_diag.
+_tcpInfoInterval: "10ms"
 
 #Results: Codec: xz: EncodeArg: ["-0"]

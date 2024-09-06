@@ -1,23 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0
-// Copyright 2023 Pete Heist
+// Copyright 2024 Pete Heist
 
 package sce
 
 // _twoflow tests two flow competition, varying each flow's CCA and RTT.
 _twoflow: {
 	// variables
-	_rate:  int
-	_rtt1:  int
-	_rtt2:  int
-	_cca1:  string & !=""
-	_cca2:  string & !=""
-	_qdisc: string & !=""
-
-	// constants
-	_duration: 60
+	_name:     string & !=""
+	_rate:     int
+	_rtt1:     int
+	_rtt2:     int
+	_cca1:     string & !=""
+	_cca2:     string & !=""
+	_duration: int
+	_qdisc:    string & !=""
 
 	ID: {
-		name:  "twoflow"
+		name:  _name
 		rate:  "\(_rate)mbit"
 		cca1:  _cca1
 		rtt1:  "\(_rtt1)ms"
@@ -47,34 +46,28 @@ _twoflow: {
 				title: "Two Flow, \(_rate)Mbps, \(FlowLabel[_cca1])@\(_rtt1)ms, \(FlowLabel[_cca2])@\(_rtt2)ms, \(_qdisc)"
 				series: {
 					"0": {
-						color:     _dark2[0]
-						lineWidth: 1.5
+						color: _dark2[0]
 					}
 					"1": {
-						color:     _dark2[1]
-						lineWidth: 1.5
+						targetAxisIndex: 1
+						color:           _dark2[1]
 					}
 					"2": {
-						targetAxisIndex: 1
-						lineWidth:       0
-						pointSize:       0.5
-						color:           _dark2[2]
+						color: _dark2[2]
 					}
 					"3": {
 						targetAxisIndex: 1
-						lineWidth:       0
-						pointSize:       0.5
 						color:           _dark2[3]
 					}
 				}
 				vAxes: {
-					"0": viewWindow: {
-						max: _rate * 1.1
+					"0": {
+						title: "Delivery Rate (Mbps)"
+						viewWindow: max: _rate * 1.1
 					}
 					"1": {
-						viewWindow: {
-							max: 1000
-						}
+						title: "TCP RTT (ms)"
+						viewWindow: max: 1000
 						scaleType: "log"
 					}
 				}
@@ -86,14 +79,27 @@ _twoflow: {
 	_rig: _tree2 & {
 		serverAddr: "\(trunk.addr):777"
 		htbQuantum: int | *1514
+		ecnValue1:  int | *1
+		if _cca1 == "bbr" {
+			ecnValue1: 0
+		}
+		ecnValue2: int | *1
+		if _cca2 == "bbr" {
+			ecnValue2: 0
+		}
 		leaf: [
 			"modprobe tcp_cubic_sce",
 			"modprobe tcp_reno_sce",
 			"modprobe tcp_dctcp_sce",
-			"sysctl -w net.ipv4.tcp_ecn=1",
+			"modprobe tcp_bbr",
+			"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
 		]
-		leaf1: post: leaf
-		leaf2: post: leaf
+		leaf1: post: [
+				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue1)",
+		] + leaf
+		leaf2: post: [
+				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue2)",
+		] + leaf
 		limb1: post: [
 			"tc qdisc add dev limb1.r root netem delay \(_rtt1)ms limit 1000000",
 		]
@@ -107,6 +113,7 @@ _twoflow: {
 		]
 		trunk: post: [
 			"sysctl -w net.ipv4.tcp_sce=1",
+			"sysctl -w net.ipv4.tcp_rmem=\"4096 131072 240000000\"",
 		]
 	}
 
@@ -117,7 +124,6 @@ _twoflow: {
 			Serial: [
 				_tcpdump & {_iface:         "trunk.l"},
 				{StreamServer: {ListenAddr: _rig.serverAddr}},
-				{PacketServer: {ListenAddr: _rig.serverAddr}},
 				{Sleep:                     "1s"},
 			]
 		}
@@ -125,64 +131,32 @@ _twoflow: {
 
 	// client runs the clients and captures packets on the leaf nodes
 	_client: {
-		_run1: {
-			{Parallel: [
-				{PacketClient: {
-					Addr: _rig.serverAddr
-					Flow: "udp-1"
-					Sender: [
-						{Unresponsive: {
-							Wait: ["20ms"]
-							Length: [0]
-							Duration: "\(_duration)s"
-						}},
-					]
-				}},
-				{StreamClient: {
-					Addr: _rig.serverAddr
-					Upload: {
-						Flow:             "\(_cca1)-1"
-						CCA:              _cca1
-						Duration:         "\(_duration)s"
-						IOSampleInterval: "\(_rtt1*4)ms"
-					}
-				}},
-			]}
-		}
-		_run2: {
-			{Parallel: [
-				{PacketClient: {
-					Addr: _rig.serverAddr
-					Flow: "udp-2"
-					Sender: [
-						{Unresponsive: {
-							Wait: ["20ms"]
-							Length: [0]
-							Duration: "\(_duration/2)s"
-						}},
-					]
-				}},
-				{StreamClient: {
-					Addr: _rig.serverAddr
-					Upload: {
-						Flow:             "\(_cca2)-2"
-						CCA:              _cca2
-						Duration:         "\(_duration/2)s"
-						IOSampleInterval: "\(_rtt2*4)ms"
-					}
-				}},
-			]}
-		}
 		Parallel: [
 			{Child: {
 				Node: _rig.leaf1.node
-				_run1
+				{StreamClient: {
+					Addr: _rig.serverAddr
+					Upload: {
+						Flow:            "\(_cca1)-1"
+						CCA:             _cca1
+						Duration:        "\(_duration)s"
+						TCPInfoInterval: _tcpInfoInterval
+					}
+				}}
 			}},
 			{Child: {
 				Node: _rig.leaf2.node
 				Serial: [
 					{Sleep: "\(_duration/2)s"},
-					_run2,
+					{StreamClient: {
+						Addr: _rig.serverAddr
+						Upload: {
+							Flow:            "\(_cca2)-2"
+							CCA:             _cca2
+							Duration:        "\(_duration/2)s"
+							TCPInfoInterval: _tcpInfoInterval
+						}
+					}},
 				]
 			}},
 		]

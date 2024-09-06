@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
-// Copyright 2023 Pete Heist
+// Copyright 2024 Pete Heist
 
 package sce
 
 // _oneflow tests one TCP flow for a given rate, RTT, CCA and qdisc.
 _oneflow: {
 	// variables
+	_name:     string & !=""
 	_rate:     int
 	_rtt:      int
 	_cca:      string & !=""
@@ -13,7 +14,7 @@ _oneflow: {
 	_duration: int
 
 	ID: {
-		name:  "oneflow"
+		name:  _name
 		rate:  "\(_rate)mbit"
 		rtt:   "\(_rtt)ms"
 		cca:   _cca
@@ -38,7 +39,7 @@ _oneflow: {
 			To: ["timeseries.html"]
 			FlowLabel: _flowLabel
 			Options: {
-				title: "Single Flow, \(_rate)Mbps, \(_rtt)ms RTT, \(FlowLabel[_cca]), \(_qdisc) "
+				title: "Single Flow \(FlowLabel[_cca]), \(_rate)Mbps, \(_rtt)ms RTT, \(_qdisc)"
 				series: {
 					"0": {
 						color:     _dark2[0]
@@ -52,13 +53,13 @@ _oneflow: {
 					}
 				}
 				vAxes: {
-					"0": viewWindow: {
-						max: _rate * 1.1
+					"0": {
+						title: "Delivery Rate (Mbps)"
+						viewWindow: max: _rate * 1.1
 					}
 					"1": {
-						viewWindow: {
-							max: 1000
-						}
+						title: "TCP RTT (ms)"
+						viewWindow: max: 1000
 						scaleType: "log"
 					}
 				}
@@ -70,11 +71,15 @@ _oneflow: {
 	_rig: _dumbbell & {
 		serverAddr: "\(right.addr):777"
 		htbQuantum: int | *1514
+		ecnValue:   int | *1
+		if _cca == "bbr" {
+			ecnValue: 0
+		}
 		left: post: [
 			"modprobe tcp_cubic_sce",
 			"modprobe tcp_reno_sce",
 			"modprobe tcp_dctcp_sce",
-			"sysctl -w net.ipv4.tcp_ecn=1",
+			"sysctl -w net.ipv4.tcp_ecn=\(ecnValue)",
 			"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
 		]
 		mid: post: [
@@ -101,7 +106,6 @@ _oneflow: {
 			Serial: [
 				_tcpdump & {_iface:         "right.l"},
 				{StreamServer: {ListenAddr: _rig.serverAddr}},
-				{PacketServer: {ListenAddr: _rig.serverAddr}},
 				{Sleep:                     "1s"},
 			]
 		}
@@ -114,28 +118,15 @@ _oneflow: {
 			Serial: [
 				_tcpdump & {_iface: "left.r"},
 				{Sleep:             "1s"},
-				{Parallel: [
-					{PacketClient: {
-						Addr: _rig.serverAddr
-						Flow: "udp"
-						Sender: [
-							{Unresponsive: {
-								Wait: ["20ms"]
-								Length: [160]
-								Duration: "\(_duration)s"
-							}},
-						]
-					}},
-					{StreamClient: {
-						Addr: _rig.serverAddr
-						Upload: {
-							Flow:             _cca
-							CCA:              _cca
-							Duration:         "\(_duration)s"
-							IOSampleInterval: "\(_rtt*4)ms"
-						}
-					}},
-				]},
+				{StreamClient: {
+					Addr: _rig.serverAddr
+					Upload: {
+						Flow:            _cca
+						CCA:             _cca
+						Duration:        "\(_duration)s"
+						TCPInfoInterval: _tcpInfoInterval
+					}
+				}},
 			]
 		}
 	}

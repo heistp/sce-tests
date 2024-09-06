@@ -6,17 +6,16 @@ package sce
 // _ratedrop tests one TCP flow through a drop then rise in bottleneck capacity.
 _ratedrop: {
 	// parameters
-	_rate0: int
-	_rate1: int
-	_rtt:   int
-	_cca:   string & !=""
-	_qdisc: string & !=""
-
-	// constants
-	_duration: 90
+	_name:     string & !=""
+	_rate0:    int
+	_rate1:    int
+	_rtt:      int
+	_cca:      string & !=""
+	_qdisc:    string & !=""
+	_duration: int
 
 	ID: {
-		name:  "ratedrop"
+		name:  _name
 		rate0: "\(_rate0)mbit"
 		rate1: "\(_rate1)mbit"
 		rtt:   "\(_rtt)ms"
@@ -61,7 +60,7 @@ _ratedrop: {
 					}
 					"1": {
 						viewWindow: {
-							max: 1000
+							max: 2000
 						}
 						scaleType: "log"
 					}
@@ -74,11 +73,16 @@ _ratedrop: {
 	_rig: _dumbbell & {
 		serverAddr: "\(right.addr):777"
 		htbQuantum: int | *1514
+		ecnValue:   int | *1
+		if _cca == "bbr" {
+			ecnValue: 0
+		}
 		left: post: [
 			"modprobe tcp_cubic_sce",
 			"modprobe tcp_reno_sce",
 			"modprobe tcp_dctcp_sce",
-			"sysctl -w net.ipv4.tcp_ecn=1",
+			"sysctl -w net.ipv4.tcp_ecn=\(ecnValue)",
+			"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
 		]
 		mid: post: [
 			"tc qdisc add dev mid.r root handle 1: htb default 1",
@@ -93,6 +97,7 @@ _ratedrop: {
 		]
 		right: post: [
 			"sysctl -w net.ipv4.tcp_sce=1",
+			"sysctl -w net.ipv4.tcp_rmem=\"4096 131072 240000000\"",
 		]
 	}
 
@@ -127,28 +132,15 @@ _ratedrop: {
 		_left: [
 			_tcpdump & {_iface: "left.r"},
 			{Sleep:             "1s"},
-			{Parallel: [
-				{PacketClient: {
-					Addr: _rig.serverAddr
-					Flow: "udp"
-					Sender: [
-						{Unresponsive: {
-							Wait: ["10ms"]
-							Length: [160]
-							Duration: "\(_duration)s"
-						}},
-					]
-				}},
-				{StreamClient: {
-					Addr: _rig.serverAddr
-					Upload: {
-						Flow:             _cca
-						CCA:              _cca
-						Duration:         "\(_duration)s"
-						IOSampleInterval: "\(_rtt*4)ms"
-					}
-				}},
-			]},
+			{StreamClient: {
+				Addr: _rig.serverAddr
+				Upload: {
+					Flow:            _cca
+					CCA:             _cca
+					Duration:        "\(_duration)s"
+					TCPInfoInterval: _tcpInfoInterval
+				}
+			}},
 			{Sleep: "1s"},
 		]
 
