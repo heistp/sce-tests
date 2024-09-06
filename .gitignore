@@ -9,6 +9,10 @@
 # local CUE files
 local.cue
 
+# private directory / symlink
+.private/
+.private
+
 # results directory
 results/
 
