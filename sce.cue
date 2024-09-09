@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-// Copyright 2023 Pete Heist
+// Copyright 2024 Pete Heist
 
 // This Antler package tests Some Congestion Experienced.
 // https://github.com/chromi/sce
@@ -86,6 +86,23 @@ Test: [
 			_cca2:     c
 			_duration: int | *(2 * 60)
 			if t[1] > 80 {
+				_duration: 5 * 60
+			}
+			_qdisc: "deltic_polya"
+		}
+	},
+
+	// vbrudp tests
+	for c in [ "reno", "reno-sce", "cubic", "cubic-sce", "bbr"]
+	for r in [100, 1000]
+	for t in [10, 160] {
+		_vbrudp & {
+			_name:     "polya-vbrudp"
+			_rate:     r
+			_rtt:      t
+			_cca:      c
+			_duration: int | *(2 * 60)
+			if t > 80 {
 				_duration: 5 * 60
 			}
 			_qdisc: "deltic_polya"

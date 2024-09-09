@@ -87,11 +87,7 @@ _twoflow: {
 		if _cca2 == "bbr" {
 			ecnValue2: 0
 		}
-		leaf: [
-			"modprobe tcp_cubic_sce",
-			"modprobe tcp_reno_sce",
-			"modprobe tcp_dctcp_sce",
-			"modprobe tcp_bbr",
+		leaf: _modprobe_cca + [
 			"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
 		]
 		leaf1: post: [

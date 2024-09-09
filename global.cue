@@ -43,6 +43,13 @@ _tcpdump: {
 	}
 }
 
+// _modprobe_cca defines the modprobe commands for each CCA.
+_modprobe_cca: [
+	"modprobe tcp_cubic_sce",
+	"modprobe tcp_reno_sce",
+	"modprobe tcp_bbr",
+]
+
 // _tcpInfoInterval is the default sample interval for TCP info from sock_diag.
 _tcpInfoInterval: "10ms"
 

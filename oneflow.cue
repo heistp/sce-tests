@@ -75,12 +75,9 @@ _oneflow: {
 		if _cca == "bbr" {
 			ecnValue: 0
 		}
-		left: post: [
-			"modprobe tcp_cubic_sce",
-			"modprobe tcp_reno_sce",
-			"modprobe tcp_dctcp_sce",
-			"sysctl -w net.ipv4.tcp_ecn=\(ecnValue)",
-			"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
+		left: post: _modprobe_cca + [
+				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue)",
+				"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
 		]
 		mid: post: [
 			"tc qdisc add dev mid.r root handle 1: htb default 1",

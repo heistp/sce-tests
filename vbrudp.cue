@@ -1,32 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0
-// Copyright 2023 Pete Heist
+// Copyright 2024 Pete Heist
 
 package sce
 
-// _ratedrop tests one TCP flow through a drop then rise in bottleneck capacity.
-_ratedrop: {
-	// parameters
+// _vbrudp tests bursty, variable bitrate UDP traffic together with a TCP flow.
+_vbrudp: {
+	// variables
 	_name:     string & !=""
-	_rate0:    int
-	_rate1:    int
+	_rate:     int
 	_rtt:      int
 	_cca:      string & !=""
-	_qdisc:    string & !=""
 	_duration: int
+	_qdisc:    string & !=""
 
 	ID: {
 		name:  _name
-		rate0: "\(_rate0)mbit"
-		rate1: "\(_rate1)mbit"
+		rate:  "\(_rate)mbit"
 		rtt:   "\(_rtt)ms"
 		cca:   _cca
 		qdisc: _qdisc
 	}
-	Path: "{{.name}}/{{.rate0}}_{{.rate1}}_{{.rtt}}_{{.cca}}_{{.qdisc}}_"
+	Path: "{{.name}}/{{.rate}}_{{.rtt}}_{{.cca}}_{{.qdisc}}_"
 	Serial: [
 		_rig.setup,
 		_server,
-		_do,
+		_client,
 	]
 
 	// After lists the report stages to run after Test
@@ -41,27 +39,30 @@ _ratedrop: {
 			To: ["timeseries.html"]
 			FlowLabel: _flowLabel
 			Options: {
-				title: "Rate Drop, \(_rate0)Mbps → \(_rate1)Mbps, \(_rtt)ms RTT, \(FlowLabel[_cca]), \(_qdisc)"
+				title: "Single Flow w/ Bursty UDP, \(FlowLabel[_cca]), \(_rate)Mbps, \(_rtt)ms RTT, \(_qdisc)"
 				series: {
 					"0": {
-						color:     _dark2[0]
-						lineWidth: 1.5
+						color: _dark2[0]
 					}
 					"1": {
 						targetAxisIndex: 1
-						lineWidth:       0
-						pointSize:       0.5
 						color:           _dark2[1]
+					}
+					"2": {
+						targetAxisIndex: 1
+						color:           _dark2[2]
+						lineWidth:       0
+						pointSize:       0.2
 					}
 				}
 				vAxes: {
-					"0": viewWindow: {
-						max: _rate0 * 1.1
+					"0": {
+						title: "Delivery Rate (Mbps)"
+						viewWindow: max: _rate * 1.1
 					}
 					"1": {
-						viewWindow: {
-							max: 2000
-						}
+						title: "TCP RTT / OWD (ms)"
+						viewWindow: max: 1000
 						scaleType: "log"
 					}
 				}
@@ -83,7 +84,7 @@ _ratedrop: {
 		]
 		mid: post: [
 			"tc qdisc add dev mid.r root handle 1: htb default 1",
-			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(_rate0)mbit quantum \(htbQuantum)",
+			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(_rate)mbit quantum \(htbQuantum)",
 			"tc qdisc add dev mid.r parent 1:1 \(_qdisc)",
 			"tc qdisc add dev mid.l root netem delay \(_rtt/2)ms limit 1000000",
 			"ip link add dev imid.l type ifb",
@@ -111,42 +112,45 @@ _ratedrop: {
 		}
 	}
 
-	// do defines the parallel Runners for the left (client) and mid (middlebox)
-	// nodes.
-	_do: {
-		Parallel: [
-			{Child: {
-				Node:   _rig.left.node
-				Serial: _left
-			}},
-			{Child: {
-				Node:   _rig.mid.node
-				Serial: _mid
-			}},
-		]
-
-		// left lists the serial Runners run on the left (client) node.
-		_left: [
-			_tcpdump & {_iface: "left.r"},
-			{Sleep:             "1s"},
-			{StreamClient: {
-				Addr: _rig.serverAddr
-				Upload: {
-					Flow:            _cca
-					CCA:             _cca
-					Duration:        "\(_duration)s"
-					TCPInfoInterval: _tcpInfoInterval
-				}
-			}},
-			{Sleep: "1s"},
-		]
-
-		// mid lists the serial Runners run on the mid (middlebox) node.
-		_mid: [
-			{Sleep:           "\(_duration/3)s"},
-			{System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate1)mbit quantum \(_rig.htbQuantum)"},
-			{Sleep:           "\(_duration/3)s"},
-			{System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate0)mbit quantum \(_rig.htbQuantum)"},
-		]
+	// client runs the client and captures packets on the left node
+	_client: {
+		Child: {
+			Node: _rig.left.node
+			Serial: [
+				_tcpdump & {_iface: "left.r"},
+				{Sleep:             "1s"},
+				{Parallel: [
+					{StreamClient: {
+						Addr: _rig.serverAddr
+						Upload: {
+							Flow:            _cca
+							CCA:             _cca
+							Duration:        "\(_duration)s"
+							TCPInfoInterval: _tcpInfoInterval
+						}
+					}},
+					{Serial: [
+						{Sleep: "\(_duration/3)s"},
+						{PacketClient: {
+							Addr: _rig.serverAddr
+							Flow: "udp"
+							Sender: [
+								{Unresponsive: {
+									Wait: ["10ms"]
+									Length: [160]
+									Duration: "\(_duration/3)s"
+								}},
+								{Unresponsive: {
+									Wait: ["0ms", "0ms", "0ms", "0ms",
+										"0ms", "0ms", "0ms", "50ms"]
+									Length: [900]
+									Duration: "\(_duration/3)s"
+								}},
+							]
+						}},
+					]},
+				]},
+			]
+		}
 	}
 }
