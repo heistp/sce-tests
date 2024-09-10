@@ -108,6 +108,25 @@ Test: [
 			_qdisc: "deltic_polya"
 		}
 	},
+
+	// slotting tests
+	for c in [ "cubic", "cubic-sce", "reno-sce", "bbr"]
+	for r in [100, 1000]
+	for t in [10, 80]
+	for s in ["wifi", "docsis"] {
+		_slotting & {
+			_name:     "polya-slotting"
+			_rate:     r
+			_rtt:      t
+			_cca:      c
+			_slot:     s
+			_duration: int | *(2 * 60)
+			if t > 80 {
+				_duration: 5 * 60
+			}
+			_qdisc: "deltic_polya"
+		}
+	},
 ]
 
 MultiReport: [{
