@@ -8,6 +8,7 @@
 
 # local CUE files
 local.cue
+fct.cue
 
 # private directory / symlink
 .private/
