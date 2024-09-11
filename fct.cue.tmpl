@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: GPL-3.0
+// Copyright 2024 Pete Heist
+
+package sce
+
+// _fct runs a series of short TCP flows in competition with a background flow.
+// Flow arrival times use an exponential distribution, and flow lengths are
+// on a lognormal distribution with P5 of 64K and P95 of 2M.
+_fct: {
+	// variables
+	_name:     string & !=""
+	_rate:     int
+	_rtt:      int
+	_cca_bg:   string & !=""
+	_cca:      string & !=""
+	_qdisc:    string & !=""
+
+	// constants
+	_duration: 60
+
+	ID: {
+		name:  _name
+		rate:  "\(_rate)mbit"
+		rtt:   "\(_rtt)ms"
+		cca_bg:   _cca_bg
+		cca:   _cca
+		qdisc: _qdisc
+	}
+	// Path is defined in fct-static.cue
+	Serial: [
+		_rig.setup,
+		_server,
+		_client,
+	]
+
+	After: [
+	    {Analyze: {}},
+	 	{ChartsFCT: {
+			To: ["fct.html"]
+			Series: [
+				{Name: _flowLabel[_cca], Pattern: "\(_cca).*"},
+			]
+			Options: {
+				title: "\(_flowLabel[_cca_bg]) background vs \(_flowLabel[_cca]) short flow competition, \(_rate)Mbps, \(_rtt)ms RTT, \(_qdisc)"
+			}
+		}},
+	]
+
+	// rig defines the dumbbell Test setup
+	_rig: _tree2 & {
+		serverAddr: "\(trunk.addr):777"
+		htbQuantum: int | *1514
+		ecnValue1:  int | *1
+		if _cca_bg == "bbr" {
+			ecnValue1: 0
+		}
+		ecnValue2: int | *1
+		if _cca == "bbr" {
+			ecnValue2: 0
+		}
+		leaf: _modprobe_cca + [
+			"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
+		]
+		leaf1: post: [
+				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue1)",
+		] + leaf
+		leaf2: post: [
+				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue2)",
+		] + leaf
+		limb1: post: [
+			"tc qdisc add dev limb1.r root netem delay \(_rtt)ms limit 1000000",
+		]
+		limb2: post: [
+			"tc qdisc add dev limb2.r root netem delay \(_rtt)ms limit 1000000",
+		]
+		fork: post: [
+			"tc qdisc add dev fork.r root handle 1: htb default 1",
+			"tc class add dev fork.r parent 1: classid 1:1 htb rate \(_rate)mbit quantum \(htbQuantum)",
+			"tc qdisc add dev fork.r parent 1:1 \(_qdisc)",
+		]
+		trunk: post: [
+			"sysctl -w net.ipv4.tcp_sce=1",
+			"sysctl -w net.ipv4.tcp_rmem=\"4096 131072 240000000\"",
+		]
+	}
+
+	// _server runs the server and captures packets on the trunk node
+	_server: {
+		Child: {
+			Node: _rig.trunk.node
+			Serial: [
+				_tcpdump & {_iface:         "trunk.l"},
+				{StreamServer: {ListenAddr: _rig.serverAddr}},
+				{Sleep:                     "1s"},
+			]
+		}
+	}
+
+	// _client runs the test using scheduled StreamClients
+	_client: Parallel: [
+		{Child: {
+			Node: _rig.leaf1.node
+			Serial: [
+				{StreamClient: {
+					Addr: _rig.serverAddr
+					Upload: {
+						Flow: _cca_bg
+						CCA: _cca_bg
+						Duration:        "\(_duration)s"
+						IOSampleInterval: "\(_rtt*4)ms"
+					}
+				}},
+				{Sleep: "1s"},
+			]
+		}},
+		{Child: {
+			Node: _rig.leaf2.node
+			Serial: [
+				{Schedule: {
+					// expRandDuration: meanDuration, n, rate
+					// meanDuration * n must equal test duration
+					Wait: {{expRandDuration "50ms" 1200 1.0}}
+					Run: [
+						// lognRandBytes: n, p5, p95
+						// n should equal n above
+						for i, l in {{lognRandBytes 1200 65536 2097152}}
+							{StreamClient: {
+								Addr: _rig.serverAddr
+								Upload: {
+									Flow: "\(_cca).\(i+1)"
+									CCA: _cca
+									Length: l
+									IOSampleInterval: "\(_rtt*4)ms"
+								}
+							}}
+					]
+				}},
+				{Sleep: "1s"},
+			]
+		}},
+	]
+}

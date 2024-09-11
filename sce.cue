@@ -7,7 +7,7 @@
 package sce
 
 Test: [
-	// oneflow tests
+	// polya oneflow tests
 	for c in ["cubic", "cubic-sce", "bbr"]
 	for t in [1, 10, 40, 160, 320]
 	for r in [1, 10, 100, 1000] {
@@ -24,7 +24,7 @@ Test: [
 		}
 	},
 
-	// ratedrop tests
+	// polya ratedrop tests
 	for c in ["cubic", "cubic-sce", "bbr"]
 	for r in [100, 1000]
 	for t in [20, 160] {
@@ -42,7 +42,7 @@ Test: [
 		}
 	},
 
-	// twoflow tests (same RTT)
+	// polya twoflow tests (same RTT)
 	for c in [
 		// homogenous
 		["reno", "reno"],
@@ -73,7 +73,7 @@ Test: [
 		}
 	},
 
-	// twoflow-rtt tests (different RTTs)
+	// polya twoflow-rtt tests (different RTTs)
 	for c in [ "reno", "reno-sce", "cubic", "cubic-sce", "bbr"]
 	for r in [100, 1000]
 	for t in [[10, 20], [20, 80], [10, 160]] {
@@ -92,7 +92,7 @@ Test: [
 		}
 	},
 
-	// vbrudp tests
+	// polya vbrudp tests
 	for c in [ "reno", "reno-sce", "cubic", "cubic-sce", "bbr"]
 	for r in [100, 1000]
 	for t in [10, 160] {
@@ -109,7 +109,7 @@ Test: [
 		}
 	},
 
-	// slotting tests
+	// polya slotting tests
 	for c in [ "cubic", "cubic-sce", "reno-sce", "bbr"]
 	for r in [100, 1000]
 	for t in [10, 80]
@@ -125,6 +125,27 @@ Test: [
 				_duration: 5 * 60
 			}
 			_qdisc: "deltic_polya"
+		}
+	},
+
+	// polya fct tests
+	for c in [
+		["bbr", "bbr"],
+		["bbr", "cubic"],
+		["cubic", "cubic"],
+		["cubic", "bbr"],
+		["cubic-sce", "cubic-sce"],
+		["reno-sce", "reno-sce"],
+	]
+	for r in [100]
+	for t in [10, 80] {
+		_fct & {
+			_name:   "polya-fct"
+			_rate:   r
+			_rtt:    t
+			_cca_bg: c[0]
+			_cca:    c[1]
+			_qdisc:  "deltic_polya"
 		}
 	},
 ]
