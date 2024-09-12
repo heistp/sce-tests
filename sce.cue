@@ -148,6 +148,28 @@ Test: [
 			_qdisc:  "deltic_polya"
 		}
 	},
+
+	// nflows tests
+	for c in [
+		["bbr", "cubic", "reno"],
+		["reno-sce", "cubic-sce"],
+	]
+	for r in [100]
+	for t in [5, 10]
+	for f in [8, 32, 64] {
+		_nflows & {
+			_name:     "polya-nflows"
+			_rate:     r
+			_rtt:      t
+			_cca:      c
+			_flows:    f
+			_duration: int | *(2 * 60)
+			if t > 80 {
+				_duration: 5 * 60
+			}
+			_qdisc: "deltic_polya"
+		}
+	},
 ]
 
 MultiReport: [{
