@@ -129,25 +129,25 @@ Test: [
 	},
 
 	// polya fct tests
-	for c in [
-		["bbr", "bbr"],
-		["bbr", "cubic"],
-		["cubic", "cubic"],
-		["cubic", "bbr"],
-		["cubic-sce", "cubic-sce"],
-		["reno-sce", "reno-sce"],
-	]
-	for r in [100]
-	for t in [10, 80] {
-		_fct & {
-			_name:   "polya-fct"
-			_rate:   r
-			_rtt:    t
-			_cca_bg: c[0]
-			_cca:    c[1]
-			_qdisc:  "deltic_polya"
-		}
-	},
+	//for c in [
+	//	["bbr", "bbr"],
+	//	["bbr", "cubic"],
+	//	["cubic", "cubic"],
+	//	["cubic", "bbr"],
+	//	["cubic-sce", "cubic-sce"],
+	//	["reno-sce", "reno-sce"],
+	//]
+	//for r in [100]
+	//for t in [10, 80] {
+	//	_fct & {
+	//		_name:   "polya-fct"
+	//		_rate:   r
+	//		_rtt:    t
+	//		_cca_bg: c[0]
+	//		_cca:    c[1]
+	//		_qdisc:  "deltic_polya"
+	//	}
+	//},
 
 	// nflows tests
 	for c in [
