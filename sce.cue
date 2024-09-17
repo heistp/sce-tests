@@ -170,6 +170,19 @@ Test: [
 			_qdisc: "deltic_polya"
 		}
 	},
+
+	// mix tests
+	for t in [5, 20] {
+		_mix & {
+			_name:     "boroshne-mix"
+			_rtt:      t
+			_duration: int | *(1 * 60)
+			if t > 80 {
+				_duration: 5 * 60
+			}
+			_qdisc: "cake"
+		}
+	},
 ]
 
 MultiReport: [{

@@ -51,6 +51,6 @@ _modprobe_cca: [
 ]
 
 // _tcpInfoInterval is the default sample interval for TCP info from sock_diag.
-_tcpInfoInterval: "10ms"
+_tcpInfoInterval: "20ms"
 
 #Results: Codec: xz: EncodeArg: ["-0"]
