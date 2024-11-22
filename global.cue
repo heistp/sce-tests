@@ -46,6 +46,7 @@ _tcpdump: {
 // _modprobe_cca defines the modprobe commands for each CCA.
 _modprobe_cca: [
 	"modprobe tcp_cubic_sce",
+	"modprobe tcp_dctcp_sce",
 	"modprobe tcp_reno_sce",
 	"modprobe tcp_bbr",
 ]

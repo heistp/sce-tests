@@ -3,7 +3,9 @@
 
 package sce
 
-// _mix tests a mix of flows: CUBIC, CUBIC-SCE, isochronous UDP and
+import "list"
+
+// _mix tests a mix of flows: Reno, Reno-SCE, isochronous UDP and
 // unresponsive UDP.
 _mix: {
 	// variables
@@ -41,7 +43,7 @@ _mix: {
 			To: ["timeseries.html"]
 			FlowLabel: _flowLabel
 			Options: {
-				title: "Flow Mix (CUBIC, CUBIC-SCE, isochronous UDP, unresponsive UDP), \(_rate)Mbps, \(_rtt)ms RTT, \(_qdisc)"
+				title: "Flow Mix (Reno, Reno-SCE, isochronous UDP, unresponsive UDP), \(_rate)Mbps, \(_rtt)ms RTT, \(_qdisc)"
 				series: {
 					"0": {
 						color:     _dark2[0]
@@ -95,15 +97,19 @@ _mix: {
 	_rig: _dumbbell & {
 		serverAddr: "\(right.addr):777"
 		htbQuantum: int | *1514
-		left: post: _modprobe_cca + [
+		left: post: list.Concat([
+			_modprobe_cca,
+			[
 				"sysctl -w net.ipv4.tcp_ecn=1",
 				"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
-		]
+			],
+		])
 		mid: post: [
-			//"tc qdisc add dev mid.r root handle 1: htb default 1",
-			//"tc class add dev mid.r parent 1: classid 1:1 htb rate \(_rate)mbit quantum \(htbQuantum)",
-			//"tc qdisc add dev mid.r parent 1:1 \(_qdisc)",
-			"tc qdisc add dev mid.r root \(_qdisc) bandwidth \(_rate)mbit",
+			for c in {_addQdisc & {
+				iface: "mid.r"
+				qdisc: _qdisc
+				rate:  "\(_rate)mbit"
+			}}.Commands {c},
 			"tc qdisc add dev mid.l root netem delay \(_rtt/2)ms limit 1000000",
 			"ip link add dev imid.l type ifb",
 			"tc qdisc add dev imid.l root handle 1: netem delay \(_rtt/2)ms limit 1000000",
@@ -141,8 +147,8 @@ _mix: {
 					{StreamClient: {
 						Addr: _rig.serverAddr
 						Upload: {
-							Flow:            "cubic"
-							CCA:             "cubic"
+							Flow:            "reno"
+							CCA:             "reno"
 							Duration:        "\(_duration)s"
 							TCPInfoInterval: _tcpInfoInterval
 						}
@@ -150,8 +156,8 @@ _mix: {
 					{StreamClient: {
 						Addr: _rig.serverAddr
 						Upload: {
-							Flow:            "cubic-sce"
-							CCA:             "cubic-sce"
+							Flow:            "reno-sce"
+							CCA:             "reno-sce"
 							Duration:        "\(_duration)s"
 							TCPInfoInterval: _tcpInfoInterval
 						}
@@ -169,7 +175,7 @@ _mix: {
 						]
 					}},
 					{Serial: [
-						{Sleep: "\(_duration/3)s"},
+						{Sleep: "\(div(_duration, 3))s"},
 						{PacketClient: {
 							Addr: _rig.serverAddr
 							Flow: "udp-flood"

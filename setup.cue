@@ -3,6 +3,8 @@
 
 package sce
 
+import "list"
+
 // _platform sets the node platform used for all tests (must match the local
 // machine).
 _platform: "linux-amd64"
@@ -31,6 +33,36 @@ _sysinfo: {
 			"^net\\.ipv4\\.udp_",
 		]
 	}
+}
+
+// _rootQdiscs is a list of qdiscs with builtin shapers, like Cake.  Others are
+// added as a leaf on htb.
+_rootQdiscs: [
+	"cake",
+	"cnq_codel_af",
+	"cnq_cobalt",
+	"deltic_boroshne",
+	"twin_codel_af",
+]
+
+// _addQdisc provides a list of commands to add a qdisc, respecting the qdisc
+// syntax.
+_addQdisc: {
+	iface:      string & !=""
+	qdisc:      string & !=""
+	rate:       string & !=""
+	htbQuantum: int | *1514
+	_rootQdisc: list.Contains(_rootQdiscs, qdisc)
+	Commands: [
+		if _rootQdisc {
+			"tc-sce qdisc add dev \(iface) root \(qdisc) bandwidth \(rate)"
+		},
+		if !_rootQdisc for s in [
+			"tc qdisc add dev \(iface) root handle 1: htb default 1",
+			"tc class add dev \(iface) parent 1: classid 1:1 htb rate \(rate) quantum \(htbQuantum)",
+			"tc-sce qdisc add dev \(iface) parent 1:1 \(qdisc)",
+		] {s},
+	]
 }
 
 // _noOffloads contains the features arguments for ethtool to disable offloads
@@ -69,45 +101,54 @@ _dumbbell: {
 		post: [...string]
 		node:  _netnsNode & {ID: "right"}
 		addr:  "10.0.0.2"
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link add dev right.l type veth peer name mid.r",
-			"ip link set dev mid.r netns mid",
-			"ip addr add \(addr)/24 dev right.l",
-			"ip link set right.l up",
-			"ethtool -K right.l \(_noOffloads)",
-		] + post
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"ip link add dev right.l type veth peer name mid.r",
+				"ip link set dev mid.r netns mid",
+				"ip addr add \(addr)/24 dev right.l",
+				"ip link set right.l up",
+				"ethtool -K right.l \(_noOffloads)",
+			],
+			post,
+		])
 	}
 
 	mid: {
 		post: [...string]
 		node:  _netnsNode & {ID: "mid"}
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link set mid.r up",
-			"ip link add dev mid.l type veth peer name left.r",
-			"ip link set dev left.r netns left",
-			"ip link set dev mid.l up",
-			"ip link add name mid.b type bridge",
-			"ip link set dev mid.r master mid.b",
-			"ip link set dev mid.l master mid.b",
-			"ip link set dev mid.b up",
-			"ethtool -K mid.r \(_noOffloads)",
-			"ethtool -K mid.l \(_noOffloads)",
-		] + post
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"ip link set mid.r up",
+				"ip link add dev mid.l type veth peer name left.r",
+				"ip link set dev left.r netns left",
+				"ip link set dev mid.l up",
+				"ip link add name mid.b type bridge",
+				"ip link set dev mid.r master mid.b",
+				"ip link set dev mid.l master mid.b",
+				"ip link set dev mid.b up",
+				"ethtool -K mid.r \(_noOffloads)",
+				"ethtool -K mid.l \(_noOffloads)",
+			],
+			post,
+		])
 	}
 
 	left: {
 		post: [...string]
 		node:  _netnsNode & {ID: "left"}
 		addr:  "10.0.0.1"
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip addr add \(addr)/24 dev left.r",
-			"ip link set left.r up",
-			"ping -c 3 -i 0.1 \(_dumbbell.right.addr)",
-			"ethtool -K left.r \(_noOffloads)",
-		] + post
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"ip addr add \(addr)/24 dev left.r",
+				"ip link set left.r up",
+				"ping -c 3 -i 0.1 \(_dumbbell.right.addr)",
+				"ethtool -K left.r \(_noOffloads)",
+			],
+			post,
+		])
 	}
 }
 
@@ -138,39 +179,45 @@ _tree2: {
 		post: [...string]
 		node:  _netnsNode & {ID: "trunk"}
 		addr:  "10.0.0.2"
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link add dev trunk.l type veth peer name fork.r",
-			"ip link set dev fork.r netns fork",
-			"ip addr add \(addr)/24 dev trunk.l",
-			"ip link set trunk.l up",
-			"ethtool -K trunk.l \(_noOffloads)",
-			"ip route add default via 10.0.0.1",
-		] + post
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"ip link add dev trunk.l type veth peer name fork.r",
+				"ip link set dev fork.r netns fork",
+				"ip addr add \(addr)/24 dev trunk.l",
+				"ip link set trunk.l up",
+				"ethtool -K trunk.l \(_noOffloads)",
+				"ip route add default via 10.0.0.1",
+			],
+			post,
+		])
 	}
 
 	fork: {
 		post: [...string]
 		node:  _netnsNode & {ID: "fork"}
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"sysctl -w net.ipv4.ip_forward=1",
-			"ip addr add 10.0.0.1/24 dev fork.r",
-			"ip link set fork.r up",
-			"ip link add dev fork.l1 type veth peer name limb1.r",
-			"ip link set dev limb1.r netns limb1",
-			"ip addr add 10.0.10.2/24 dev fork.l1",
-			"ip link set fork.l1 up",
-			"ip link add dev fork.l2 type veth peer name limb2.r",
-			"ip link set dev limb2.r netns limb2",
-			"ip addr add 10.0.20.2/24 dev fork.l2",
-			"ip link set fork.l2 up",
-			"ethtool -K fork.r \(_noOffloads)",
-			"ethtool -K fork.l1 \(_noOffloads)",
-			"ethtool -K fork.l2 \(_noOffloads)",
-			"ip route add 10.0.11.0/24 via 10.0.10.1",
-			"ip route add 10.0.21.0/24 via 10.0.20.1",
-		] + post
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"sysctl -w net.ipv4.ip_forward=1",
+				"ip addr add 10.0.0.1/24 dev fork.r",
+				"ip link set fork.r up",
+				"ip link add dev fork.l1 type veth peer name limb1.r",
+				"ip link set dev limb1.r netns limb1",
+				"ip addr add 10.0.10.2/24 dev fork.l1",
+				"ip link set fork.l1 up",
+				"ip link add dev fork.l2 type veth peer name limb2.r",
+				"ip link set dev limb2.r netns limb2",
+				"ip addr add 10.0.20.2/24 dev fork.l2",
+				"ip link set fork.l2 up",
+				"ethtool -K fork.r \(_noOffloads)",
+				"ethtool -K fork.l1 \(_noOffloads)",
+				"ethtool -K fork.l2 \(_noOffloads)",
+				"ip route add 10.0.11.0/24 via 10.0.10.1",
+				"ip route add 10.0.21.0/24 via 10.0.20.1",
+			],
+			post,
+		])
 	}
 
 	limb1: _limb & {_n: 1}
@@ -182,19 +229,22 @@ _tree2: {
 		_id: "limb\(_n)"
 		post: [...string]
 		node:  _netnsNode & {ID: _id}
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"sysctl -w net.ipv4.ip_forward=1",
-			"ip addr add 10.0.\(_n)0.1/24 dev \(_id).r",
-			"ip link set \(_id).r up",
-			"ip link add dev \(_id).l type veth peer name leaf\(_n).r",
-			"ip link set dev leaf\(_n).r netns leaf\(_n)",
-			"ip addr add 10.0.\(_n)1.2/24 dev \(_id).l",
-			"ip link set \(_id).l up",
-			"ethtool -K \(_id).r \(_noOffloads)",
-			"ethtool -K \(_id).l \(_noOffloads)",
-			"ip route add 10.0.0.0/24 via 10.0.\(_n)0.2",
-		] + post
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"sysctl -w net.ipv4.ip_forward=1",
+				"ip addr add 10.0.\(_n)0.1/24 dev \(_id).r",
+				"ip link set \(_id).r up",
+				"ip link add dev \(_id).l type veth peer name leaf\(_n).r",
+				"ip link set dev leaf\(_n).r netns leaf\(_n)",
+				"ip addr add 10.0.\(_n)1.2/24 dev \(_id).l",
+				"ip link set \(_id).l up",
+				"ethtool -K \(_id).r \(_noOffloads)",
+				"ethtool -K \(_id).l \(_noOffloads)",
+				"ip route add 10.0.0.0/24 via 10.0.\(_n)0.2",
+			],
+			post,
+		])
 	}
 
 	leaf1: _leaf & {_n: 1}
@@ -206,13 +256,16 @@ _tree2: {
 		_id: "leaf\(_n)"
 		post: [...string]
 		node:  _netnsNode & {ID: _id}
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip addr add 10.0.\(_n)1.1/24 dev \(_id).r",
-			"ip link set \(_id).r up",
-			"ethtool -K \(_id).r \(_noOffloads)",
-			"ip route add default via 10.0.\(_n)1.2",
-			"ping -c 3 -i 0.1 \(_tree2.trunk.addr)",
-		] + post
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"ip addr add 10.0.\(_n)1.1/24 dev \(_id).r",
+				"ip link set \(_id).r up",
+				"ethtool -K \(_id).r \(_noOffloads)",
+				"ip route add default via 10.0.\(_n)1.2",
+				"ping -c 3 -i 0.1 \(_tree2.trunk.addr)",
+			],
+			post,
+		])
 	}
 }

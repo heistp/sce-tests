@@ -3,6 +3,8 @@
 
 package sce
 
+import "list"
+
 // _twoflow tests two flow competition, varying each flow's CCA and RTT.
 _twoflow: {
 	// variables
@@ -87,15 +89,18 @@ _twoflow: {
 		if _cca2 == "bbr" {
 			ecnValue2: 0
 		}
-		leaf: _modprobe_cca + [
-			"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
-		]
-		leaf1: post: [
-				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue1)",
-		] + leaf
-		leaf2: post: [
-				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue2)",
-		] + leaf
+		leaf: list.Concat([
+			_modprobe_cca,
+			["sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\""],
+		])
+		leaf1: post: list.Concat([
+			["sysctl -w net.ipv4.tcp_ecn=\(ecnValue1)"],
+			leaf,
+		])
+		leaf2: post: list.Concat([
+			["sysctl -w net.ipv4.tcp_ecn=\(ecnValue2)"],
+			leaf,
+		])
 		limb1: post: [
 			"tc qdisc add dev limb1.r root netem delay \(_rtt1)ms limit 1000000",
 		]
@@ -103,9 +108,11 @@ _twoflow: {
 			"tc qdisc add dev limb2.r root netem delay \(_rtt2)ms limit 1000000",
 		]
 		fork: post: [
-			"tc qdisc add dev fork.r root handle 1: htb default 1",
-			"tc class add dev fork.r parent 1: classid 1:1 htb rate \(_rate)mbit quantum \(htbQuantum)",
-			"tc qdisc add dev fork.r parent 1:1 \(_qdisc)",
+			for c in {_addQdisc & {
+				iface: "fork.r"
+				qdisc: _qdisc
+				rate:  "\(_rate)mbit"
+			}}.Commands {c},
 		]
 		trunk: post: [
 			"sysctl -w net.ipv4.tcp_sce=1",
@@ -143,7 +150,7 @@ _twoflow: {
 			{Child: {
 				Node: _rig.leaf2.node
 				Serial: [
-					{Sleep: "\(_duration/2)s"},
+					{Sleep: "\(div(_duration, 2))s"},
 					{StreamClient: {
 						Addr: _rig.serverAddr
 						Upload: {

@@ -3,6 +3,8 @@
 
 package sce
 
+import "list"
+
 // _oneflow tests one TCP flow for a given rate, RTT, CCA and qdisc.
 _oneflow: {
 	// variables
@@ -70,19 +72,23 @@ _oneflow: {
 	// rig defines the dumbbell Test setup
 	_rig: _dumbbell & {
 		serverAddr: "\(right.addr):777"
-		htbQuantum: int | *1514
 		ecnValue:   int | *1
 		if _cca == "bbr" {
 			ecnValue: 0
 		}
-		left: post: _modprobe_cca + [
+		left: post: list.Concat([
+			_modprobe_cca,
+			[
 				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue)",
 				"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
-		]
+			],
+		])
 		mid: post: [
-			"tc qdisc add dev mid.r root handle 1: htb default 1",
-			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(_rate)mbit quantum \(htbQuantum)",
-			"tc qdisc add dev mid.r parent 1:1 \(_qdisc)",
+			for c in {_addQdisc & {
+				iface: "mid.r"
+				qdisc: _qdisc
+				rate:  "\(_rate)mbit"
+			}}.Commands {c},
 			"tc qdisc add dev mid.l root netem delay \(_rtt/2)ms limit 1000000",
 			"ip link add dev imid.l type ifb",
 			"tc qdisc add dev imid.l root handle 1: netem delay \(_rtt/2)ms limit 1000000",

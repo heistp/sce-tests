@@ -3,16 +3,19 @@
 
 package sce
 
+import "list"
+
 // _ratedrop tests one TCP flow through a drop then rise in bottleneck capacity.
 _ratedrop: {
 	// parameters
-	_name:     string & !=""
-	_rate0:    int
-	_rate1:    int
-	_rtt:      int
-	_cca:      string & !=""
-	_qdisc:    string & !=""
-	_duration: int
+	_name:      string & !=""
+	_rate0:     int
+	_rate1:     int
+	_rtt:       int
+	_cca:       string & !=""
+	_qdisc:     string & !=""
+	_duration:  int
+	_rootQdisc: list.Contains(_rootQdiscs, _qdisc)
 
 	ID: {
 		name:  _name
@@ -77,14 +80,19 @@ _ratedrop: {
 		if _cca == "bbr" {
 			ecnValue: 0
 		}
-		left: post: _modprobe_cca + [
+		left: post: list.Concat([
+			_modprobe_cca,
+			[
 				"sysctl -w net.ipv4.tcp_ecn=\(ecnValue)",
 				"sysctl -w net.ipv4.tcp_wmem=\"4096 131072 160000000\"",
-		]
+			],
+		])
 		mid: post: [
-			"tc qdisc add dev mid.r root handle 1: htb default 1",
-			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(_rate0)mbit quantum \(htbQuantum)",
-			"tc qdisc add dev mid.r parent 1:1 \(_qdisc)",
+			for c in {_addQdisc & {
+				iface: "mid.r"
+				qdisc: _qdisc
+				rate:  "\(_rate0)mbit"
+			}}.Commands {c},
 			"tc qdisc add dev mid.l root netem delay \(_rtt/2)ms limit 1000000",
 			"ip link add dev imid.l type ifb",
 			"tc qdisc add dev imid.l root handle 1: netem delay \(_rtt/2)ms limit 1000000",
@@ -143,10 +151,20 @@ _ratedrop: {
 
 		// mid lists the serial Runners run on the mid (middlebox) node.
 		_mid: [
-			{Sleep:           "\(_duration/3)s"},
-			{System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate1)mbit quantum \(_rig.htbQuantum)"},
-			{Sleep:           "\(_duration/3)s"},
-			{System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate0)mbit quantum \(_rig.htbQuantum)"},
+			{Sleep: "\(div(_duration, 3))s"},
+			if _rootQdisc {
+				{System: Command: "tc-sce qdisc change dev mid.r root \(_qdisc) bandwidth \(_rate1)mbit"}
+			},
+			if !_rootQdisc {
+				{System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate1)mbit quantum \(_rig.htbQuantum)"}
+			},
+			{Sleep: "\(div(_duration, 3))s"},
+			if _rootQdisc {
+				{System: Command: "tc-sce qdisc change dev mid.r root \(_qdisc) bandwidth \(_rate0)mbit"}
+			},
+			if !_rootQdisc {
+				{System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate0)mbit quantum \(_rig.htbQuantum)"}
+			},
 		]
 	}
 }
